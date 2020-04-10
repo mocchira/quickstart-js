@@ -15,10 +15,29 @@
  */
 'use strict';
 
+const mysql = require('promise-mysql');
+
 const functions = require('firebase-functions');
 const sanitizer = require('./sanitizer');
 const admin = require('firebase-admin');
 admin.initializeApp();
+let pool;
+const createPool = async () => {
+  pool = await mysql.createPool({
+    user: `${process.env.CLOUD_SQL_USER}`,
+    password: `${process.env.CLOUD_SQL_PWD}`,
+    database: `${process.env.CLOUD_SQL_DB}`,
+    // If connecting via unix domain socket, specify the path
+    //socketPath: `/cloudsql/${process.env.CLOUD_SQL_CONNECTION_NAME}`,
+    socketPath: `${process.env.CLOUD_SQL_CONNECTION_NAME}`,
+    // If connecting via TCP, enter the IP and port instead
+    //host: 'localhost', // for tests on the dev machine
+    //port: 3306,
+
+    //...
+  });
+};
+createPool();
 
 // [START allAdd]
 // [START addFunctionTrigger]
@@ -102,3 +121,38 @@ exports.addMessage = functions.https.onCall((data, context) => {
   // [END_EXCLUDE]
 });
 // [END messageFunctionTrigger]
+
+exports.mysqlDemo = functions.https.onCall(async (data) => {
+//exports.mysqlDemo = functions.https.onRequest((req, res) => {
+  // [START readAddData]
+  // Numbers passed from the client.
+  //const firstNumber = data.firstNumber;
+  //const secondNumber = data.secondNumber;
+  // [END readAddData]
+
+  // [START addHttpsError]
+  // Checking that attributes are present and are numbers.
+  /*
+  if (!Number.isFinite(firstNumber) || !Number.isFinite(secondNumber)) {
+    // Throwing an HttpsError so that the client gets the error details.
+    throw new functions.https.HttpsError('invalid-argument', 'The function must be called with ' +
+        'two arguments "firstNumber" and "secondNumber" which must both be numbers.');
+  }
+  */
+  // [END addHttpsError]
+  //const query = pool.query('SELECT NOW() AS now');
+  const queryString = data.query;
+  // [END readMessageData]
+  // [START messageHttpsErrors]
+  // Checking attribute.
+  if (!(typeof queryString === 'string') || queryString.length === 0) {
+    // Throwing an HttpsError so that the client gets the error details.
+    throw new functions.https.HttpsError('invalid-argument', 'The function must be called with ' +
+        'one arguments "query" containing the SQL query string.');
+  }
+  const query = pool.query(queryString);
+  const rec = await query;
+  console.log(rec);
+
+  return {operationResult: rec};
+});

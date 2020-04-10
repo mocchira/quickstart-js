@@ -19,6 +19,8 @@
  * Initializes the Functions Web quickstart app.
  */
 function FunctionsQuickstart() {
+  this.sqlText = document.getElementById('sql-text');
+  this.issueSQLButton = document.getElementById('send-sql-button');
   this.signInButton = document.getElementById('sign-in-button');
   this.signOutButton = document.getElementById('sign-out-button');
   this.splashPage = document.getElementById('page-splash');
@@ -32,6 +34,7 @@ function FunctionsQuickstart() {
   // Add Click events to buttons.
   this.signInButton.addEventListener('click', this.signIn);
   this.signOutButton.addEventListener('click', this.signOut);
+  this.issueSQLButton.addEventListener('click', this.issueSQL.bind(this));
   this.addMessageButton.addEventListener('click', this.addMessage.bind(this));
   this.addNumbersButton.addEventListener('click', this.addNumbers.bind(this));
   // Listen for auth state changes.
@@ -39,6 +42,36 @@ function FunctionsQuickstart() {
   // Listen for new Messages to be displayed.
   firebase.database().ref('/messages').limitToLast(10).on('child_added', this.onNewMessage.bind(this));
 }
+
+FunctionsQuickstart.prototype.issueSQL = function() {
+  var sqlTextInput = this.sqlText;
+  var sqlText = sqlTextInput.value;
+  var issueSQLButton = this.issueSQLButton;
+  issueSQLButton.disabled = true;
+  // [START callAddFunction]
+  var sendNotification = firebase.functions().httpsCallable('mysqlDemo');
+  sendNotification({query: sqlText}).then(function(result) {
+    console.log('Cloud Function called successfully.', result);
+    // Read results of the Cloud Function.
+    var operationResult = result.data.operationResult;
+    // [START_EXCLUDE]
+    window.alert('Here is the result of the SQL: ' + operationResult);
+    issueSQLButton.disabled = false;
+    // [END_EXCLUDE]
+  }).catch(function(error) {
+    // Getting the Error details.
+    var code = error.code;
+    var message = error.message;
+    var details = error.details;
+    // [START_EXCLUDE]
+    console.error('There was an error when calling the Cloud Function', error);
+    window.alert('There was an error when calling the Cloud Function:\n\nError Code: '
+        + code + '\nError Message:' + message + '\nError Details:' + details);
+    issueSQLButton.disabled = false;
+    // [END_EXCLUDE]
+  });
+  // [END callAddFunction]
+};
 
 // Adds two numbers by calling the `addNumbers` server-side function.
 FunctionsQuickstart.prototype.addNumbers = function() {
